@@ -1,0 +1,30 @@
+{
+  "name": "vidodive",
+  "version": "1.0.0",
+  "description": "backend project for videos",
+  "keywords": [
+    "backend",
+    "video",
+    "model"
+  ],
+  "homepage": "https://github.com/Garvansh247/VidoDive#readme",
+  "bugs": {
+    "url": "https://github.com/Garvansh247/VidoDive/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Garvansh247/VidoDive.git"
+  },
+  "license": "ISC",
+  "author": "garvansh",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.4"
+  }
+}
