@@ -1,7 +1,10 @@
 import express from "express";
 import connectToDatabase from "./db/index.js";
+import { app } from "./app.js";
 
-const app=express();
+
+
+
 const PORT=process.env.PORT || 8000;
 
 connectToDatabase()
