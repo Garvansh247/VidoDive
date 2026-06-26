@@ -21,6 +21,12 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 
+
+// Import and use your routes here
+import userRoutes from "./routes/user.routes.js";
+app.use("/api/v1/users", userRoutes);
+
+
 app.use(errorMiddleware); // This middleware should be added after all other middleware and routes to handle errors properly.
 
 
