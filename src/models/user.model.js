@@ -38,10 +38,6 @@ const userSchema = new mongoose.Schema(
         coverImage: {
             type: String,
         },
-        isPublished: {
-            type: Boolean,
-            default: false,
-        },
         watchHistory: [
             {
                 type: mongoose.Schema.Types.ObjectId,
