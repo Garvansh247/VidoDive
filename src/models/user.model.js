@@ -55,10 +55,9 @@ const userSchema = new mongoose.Schema(
     }
 )
 
-userSchema.pre("save", async function(next){
-    if(!this.isModified("password")) return next();
+userSchema.pre("save", async function(){
+    if(!this.isModified("password")) return ;
     this.password=await bcrypt.hash(this.password, 10); // here 10 is the salt rounds, which determines the complexity of the hashing. A higher number means more security but also more processing time.
-    next();
 })
 
 userSchema.methods.isPasswordCorrect=async function(enteredPassword){
