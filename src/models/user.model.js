@@ -44,10 +44,6 @@ const userSchema = new mongoose.Schema(
                 ref: "Video",
             }
         ],
-        refreshToken: {
-            type: String,
-            select: false, // Exclude refreshToken from query results by default
-        }
 
     },
     {
@@ -74,8 +70,8 @@ userSchema.methods.generateAccessToken=function(){
     );
 }
 
-userSchema.methods.generateRefreshToken=function(){
-    const payload={_id:this._id};
+userSchema.methods.generateRefreshToken=function(sessionStartedAt){
+    const payload={_id:this._id,sessionStartedAt}; // sessionStartedAt is used to invalidate refresh tokens when the user logs out or changes their password.
     return jwt.sign(
         payload, 
         process.env.REFRESH_TOKEN_SECRET, 
