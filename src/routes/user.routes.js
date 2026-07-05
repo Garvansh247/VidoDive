@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { userRegisterController,userLoginController,userLogoutAllSessionsController,userLogoutController,refreshAccessTokenController } from "../controllers/user.controller.js";
-import { upload } from "../middlewares/multer.middleware.js";
-import verifyJWT from "../middlewares/verifyJWT.middleware.js";
+import { userRegisterController,userLoginController,userLogoutAllSessionsController,userLogoutController,refreshAccessTokenController
+,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController
+ } from "../controllers/user.controller.js";
+import { verifyJWT,checkVerifiedMiddleware,upload } from "../middlewares/index.js";
+
 
 const router = Router();
 
@@ -16,5 +18,11 @@ router.route("/logout").post(verifyJWT, userLogoutController);
 router.route("/logout-all-sessions").post(verifyJWT, userLogoutAllSessionsController);
 router.route("/refresh-access-token").post(refreshAccessTokenController);
 
+router.route("/resend-verification-email").post(verifyJWT, resendVerificationEmailController);
+router.route("/verify-email").get(verifyEmailController);
+
+router.route("/update-account-text-fields").patch(verifyJWT, checkVerifiedMiddleware, updateUserAccountTextFieldsController);
+router.route("/update-account-avatar").patch(verifyJWT, checkVerifiedMiddleware, upload.single("avatar"), updateUserAccountAvatarController);
+router.route("/update-account-cover-image").patch(verifyJWT, checkVerifiedMiddleware, upload.single("coverImage"), updateUserAccountCoverImageController);
 
 export default router;

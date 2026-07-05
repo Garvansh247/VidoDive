@@ -38,6 +38,16 @@ const userSchema = new mongoose.Schema(
         coverImage: {
             type: String,
         },
+        pendingEmail: {
+            type: String,
+            unique: true,
+            lowercase: true,
+            trim: true,
+        },
+        isVerified: {
+            type: Boolean,
+            default: false,
+        },
         watchHistory: [
             {
                 type: mongoose.Schema.Types.ObjectId,
@@ -79,5 +89,13 @@ userSchema.methods.generateRefreshToken=function(sessionStartedAt){
     );
 }
 
+userSchema.methods.generateEmailVerificationToken=function(pendingEmail){
+    const payload={_id:this._id, pendingEmail};
+    return jwt.sign(
+        payload,
+        process.env.EMAIL_VERIFICATION_TOKEN_SECRET,
+        {expiresIn: process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY}
+    );
+}
 
 export const User = mongoose.model("User", userSchema);

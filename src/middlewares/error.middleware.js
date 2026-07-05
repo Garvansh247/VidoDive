@@ -1,6 +1,6 @@
 import ApiError from "../utils/ApiError.js";
 
-const errorMiddleware=(err,req,res,next)=>{
+const errorMiddleware=(err,_,res,next)=>{
     let error=err;
     if(!(error instanceof ApiError)){
         error=new ApiError(

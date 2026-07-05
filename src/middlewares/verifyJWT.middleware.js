@@ -1,10 +1,10 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import jwt from "jsonwebtoken";
-import User from "../models/user.model.js";
+import {User} from "../models/user.model.js";
 
 
-const verifyJWT = asyncHandler(async (req, res, next) => {
+const verifyJWT = asyncHandler(async (req,_, next) => {
     
         const incomingAccessToken= req.cookies?.accessToken || req.header("authorization")?.split(" ")[1]; // Check for access token in cookies or Authorization header
         if(!incomingAccessToken){
@@ -14,7 +14,7 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
         if(!decodedAccessToken){
             throw new ApiError(401, "Invalid access token");
         }
-        const user=await User.findById(decodedAccessToken._id);
+        const user=await User.findById(decodedAccessToken._id).select("-password -refreshToken"); // Exclude password and refreshToken from the user object
         if(!user){
             throw new ApiError(404, "User not found");
         }

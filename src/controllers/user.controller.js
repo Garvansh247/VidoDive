@@ -2,10 +2,11 @@ import asyncHandler from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { Session } from "../models/session.model.js";
 import ApiError from "../utils/ApiError.js";
-import uploadToCloudinary from "../utils/cloudinary.js";
+import {uploadToCloudinary,deleteFromCloudinary} from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import fs from "fs";
 import jwt from "jsonwebtoken";
+import sendEmailForVerification from "../utils/verificationEmail.js";
 
 
 const cookieOptions={
@@ -14,6 +15,8 @@ const cookieOptions={
     sameSite: "None", // The cookie is sent in all contexts, i.e., in responses to both same-site and cross-site requests
     maxAge: 30 * 24 * 60 * 60 * 1000, // The cookie expires after 30 days
 }
+
+
 const generateAccessAndRefreshTokens = async (user,sessionStartedAt) => {
     try {
         const accessToken = user.generateAccessToken();
@@ -67,6 +70,8 @@ const userRegisterController = asyncHandler(async (req, res) => {
         fullName,
         avatar: avatar.secure_url,
         coverImage: coverImage?.secure_url || undefined,
+        pendingEmail: email, // Set pendingEmail to the provided email
+        isVerified:false, // Set isVerified to false for new users
     });
     if(!newUser){
         throw new ApiError(500, "Failed to create user");
@@ -83,6 +88,32 @@ const userRegisterController = asyncHandler(async (req, res) => {
 });
 
 const userLoginController = asyncHandler(async (req, res) => {
+    const refreshTokenAlreadyExisting = req.cookies?.refreshToken; // Check for refresh token in cookies
+    if(refreshTokenAlreadyExisting){
+        // If a refresh token is present, it means the user is already logged in if userid also matches then 
+        // it means user is trying to login again without logging out first, so we can clear cookies if error 
+        // or bypass login if user is already logged in and return the user data with new access token
+        try{
+            const decodedRefreshToken = jwt.verify(refreshTokenAlreadyExisting, process.env.REFRESH_TOKEN_SECRET);
+            const user= await User.findById(decodedRefreshToken._id);
+            if(user){
+                const userObject = user.toObject();
+                delete userObject.password;
+
+                const freshAccessToken = user.generateAccessToken();
+                return res.status(200)
+                .cookie("accessToken", freshAccessToken, cookieOptions)
+                .json(
+                    new ApiResponse(200, "User already logged in", {
+                        user: userObject
+                    })
+                );
+            }
+        } catch(error){
+            res.clearCookie("accessToken", cookieOptions)
+            res.clearCookie("refreshToken", cookieOptions)
+        }
+    }
     const { username,email,password } = req.body;
     //anyone of username or email is required
     if(!username && !email){
@@ -218,4 +249,133 @@ const refreshAccessTokenController = asyncHandler(async (req, res) => {
     );
 });
 
-export { userRegisterController, userLoginController, userLogoutController, userLogoutAllSessionsController, refreshAccessTokenController };
+const updateUserAccountTextFieldsController = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { email, fullName } = req.body;
+    if(!email && !fullName) {
+        throw new ApiError(400, "At least one field (email or fullName) is required to update");
+    }
+    const isEmailChanging = email && email !== req.user.email;
+    if(isEmailChanging) {
+        // Check if the new email is already taken by another user
+        const existingUser = await User.findOne({ email });
+        if(existingUser) {
+            throw new ApiError(409, "Email is already taken by another user");
+        }
+        req.user.pendingEmail = email; // Set the pendingEmail field to the new email
+        req.user.isVerified = false; // Set isVerified to false since the email is changing
+        // Generate an email verification token for the new email
+        const emailVerificationToken = req.user.generateEmailVerificationToken(email);
+        await sendEmailForVerification(email, emailVerificationToken); // Implement this function to send the verification email
+        await Session.deleteMany({ user: userId }); // Invalidate all sessions for the user
+    }
+    if(fullName) {
+        req.user.fullName = fullName;
+    }
+    await req.user.save();
+    res.status(200).json(
+        new ApiResponse(200, "User updated successfully", {
+            email: req.user.email,
+            fullName: req.user.fullName,
+            isVerified: req.user.isVerified
+        })
+    );
+});
+
+const updateUserAccountAvatarController = asyncHandler(async (req, res) => {
+    const avatarFilePath = req.file?.path;
+    if(!avatarFilePath || !fs.existsSync(avatarFilePath)) {
+        throw new ApiError(400, "Avatar is required");
+    }
+    const avatar = await uploadToCloudinary(avatarFilePath);
+    if(!avatar) {
+        throw new ApiError(500, "Failed to upload avatar");
+    }
+
+    const oldAvatarPublicId = req.user.avatar?.split('/').pop().split('.')[0]; // Extract the public ID from the URL
+    req.user.avatar = avatar.secure_url;
+    await req.user.save();
+    if(oldAvatarPublicId) {
+        await deleteFromCloudinary(oldAvatarPublicId); // Delete the old avatar from Cloudinary
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, "User avatar updated successfully", {
+            avatar: req.user.avatar
+        })
+    );
+});
+
+const updateUserAccountCoverImageController = asyncHandler(async (req, res) => {
+    const coverImageFilePath = req.file?.path;
+    if(!coverImageFilePath || !fs.existsSync(coverImageFilePath)) {
+        throw new ApiError(400, "Cover image is required");
+    }
+    const coverImage = await uploadToCloudinary(coverImageFilePath);
+    if(!coverImage) {
+        throw new ApiError(500, "Failed to upload cover image");
+    }
+    const oldCoverImagePublicId = req.user.coverImage?.split('/').pop().split('.')[0]; // Extract the public ID from the URL
+    req.user.coverImage = coverImage.secure_url;
+    await req.user.save();
+    if(oldCoverImagePublicId) {
+        await deleteFromCloudinary(oldCoverImagePublicId); // Delete the old cover image from Cloudinary
+    }
+    res.status(200).json(
+        new ApiResponse(200, "User cover image updated successfully", {
+            coverImage: req.user.coverImage
+        })
+    );
+});
+
+const verifyEmailController = asyncHandler(async (req, res) => {
+    const { token } = req.query;
+    if(!token) {
+        throw new ApiError(400, "Verification token is required");
+    }
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(token, process.env.EMAIL_VERIFICATION_TOKEN_SECRET);
+    } catch (error) {
+        throw new ApiError(400, "Invalid verification token");
+    }
+    // Update the user's email and verification status
+    const user = await User.findById(decodedToken._id);
+    if(!user) {
+        throw new ApiError(404, "User not found");
+    }
+    if(user.isVerified) {
+        throw new ApiError(400, "User is already verified");
+    }
+    if(user.pendingEmail !== decodedToken.pendingEmail) {
+        throw new ApiError(400, "Verification token does not match the pending email");
+    }
+    user.email = user.pendingEmail; // Update the email to the pending email
+    user.pendingEmail = undefined;
+    user.isVerified = true; // Set isVerified to true
+    await user.save();
+    res.status(200).json(
+        new ApiResponse(200, "Email verified successfully", {
+            email: user.email,
+            fullName: user.fullName,
+            isVerified: user.isVerified
+        })
+    );
+});
+
+const resendVerificationEmailController = asyncHandler(async (req, res) => {
+    const user = req.user;
+    if(user.isVerified) {
+        throw new ApiError(400, "User is already verified");
+    }
+    if(!user.pendingEmail) {
+        throw new ApiError(400, "No pending email found");
+    }
+    const emailVerificationToken = user.generateEmailVerificationToken(user.pendingEmail);
+    await sendEmailForVerification(user.pendingEmail, emailVerificationToken);
+    res.status(200).json(
+        new ApiResponse(200, "Verification email resent successfully")
+    );
+});
+
+export { userRegisterController, userLoginController, userLogoutController, userLogoutAllSessionsController, refreshAccessTokenController,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController };
