@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { userRegisterController,userLoginController,userLogoutAllSessionsController,userLogoutController,refreshAccessTokenController
-,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController
+,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController,
+ changeUserPasswordController, getCurrentUserController
  } from "../controllers/user.controller.js";
 import { verifyJWT,checkVerifiedMiddleware,upload } from "../middlewares/index.js";
 
@@ -21,8 +22,11 @@ router.route("/refresh-access-token").post(refreshAccessTokenController);
 router.route("/resend-verification-email").post(verifyJWT, resendVerificationEmailController);
 router.route("/verify-email").get(verifyEmailController);
 
-router.route("/update-account-text-fields").patch(verifyJWT, checkVerifiedMiddleware, updateUserAccountTextFieldsController);
+router.route("/update-account-text-fields").patch(verifyJWT, updateUserAccountTextFieldsController);
 router.route("/update-account-avatar").patch(verifyJWT, checkVerifiedMiddleware, upload.single("avatar"), updateUserAccountAvatarController);
 router.route("/update-account-cover-image").patch(verifyJWT, checkVerifiedMiddleware, upload.single("coverImage"), updateUserAccountCoverImageController);
+
+router.route("/change-password").patch(verifyJWT, checkVerifiedMiddleware, changeUserPasswordController);
+router.route("/current-user").get(verifyJWT, getCurrentUserController);
 
 export default router;

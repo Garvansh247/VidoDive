@@ -268,6 +268,9 @@ const updateUserAccountTextFieldsController = asyncHandler(async (req, res) => {
         const emailVerificationToken = req.user.generateEmailVerificationToken(email);
         await sendEmailForVerification(email, emailVerificationToken); // Implement this function to send the verification email
         await Session.deleteMany({ user: userId }); // Invalidate all sessions for the user
+
+        res.clearCookie("accessToken", cookieOptions)
+        res.clearCookie("refreshToken", cookieOptions)
     }
     if(fullName) {
         req.user.fullName = fullName;
@@ -378,4 +381,35 @@ const resendVerificationEmailController = asyncHandler(async (req, res) => {
     );
 });
 
-export { userRegisterController, userLoginController, userLogoutController, userLogoutAllSessionsController, refreshAccessTokenController,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController };
+
+const changeUserPasswordController = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    if(!oldPassword || !newPassword || !confirmPassword) {
+        throw new ApiError(400, "All fields are required");
+    }
+    if(newPassword !== confirmPassword) {
+        throw new ApiError(400, "New password and confirm password do not match");
+    }
+    const isOldPasswordValid = await req.user.isPasswordCorrect(oldPassword);
+    if(!isOldPasswordValid) {
+        throw new ApiError(401, "Old password is incorrect");
+    }
+    req.user.password = newPassword;
+    await req.user.save();
+    res.status(200).json(
+        new ApiResponse(200, "Password changed successfully")
+    );
+});
+
+const getCurrentUserController = asyncHandler(async (req, res) => {
+    const user = req.user;
+    res.status(200).json(
+        new ApiResponse(200, "User fetched successfully", {
+            user
+        })
+    );
+});
+
+
+
+export { userRegisterController, userLoginController, userLogoutController, userLogoutAllSessionsController, refreshAccessTokenController,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController, changeUserPasswordController, getCurrentUserController };
