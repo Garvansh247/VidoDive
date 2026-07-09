@@ -1,6 +1,8 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { Session } from "../models/session.model.js";
+import { Video } from "../models/video.model.js";
+import { Subscription } from "../models/subscription.model.js";
 import ApiError from "../utils/ApiError.js";
 import {uploadToCloudinary,deleteFromCloudinary} from "../utils/cloudinary.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -395,7 +397,8 @@ const changeUserPasswordController = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Old password is incorrect");
     }
     req.user.password = newPassword;
-    await req.user.save();
+    await req.user.save({ validateBeforeSave: false }); // Save the new password without running validation again
+    await Session.deleteMany({ user: req.user._id });
     res.status(200).json(
         new ApiResponse(200, "Password changed successfully")
     );
@@ -411,5 +414,118 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
 });
 
 
+const getChannelProfileController = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    const user = await User.aggregate(
+        [
+            { $match: { username } },
+            {
+                $lookup: {
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField: "subscribedTo",
+                    as: "subscribers"
+                }
+            },
+            {
+                $lookup: {
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField: "subscriber",
+                    as: "subscribedChannels"
+                }
+            },
+            {
+                $addFields: {
+                    subscriberCount: { $size: "$subscribers" },
+                    subscribedChannelCount: { $size: "$subscribedChannels" },
+                    isSubscribed: {
+                        $in: [req.user._id, "$subscribers.subscriber"]
+                    }
+                }
+            },
+            {
+                $project: {
+                    password: 0,
+                    refreshToken: 0,
+                    username: 1,
+                    email: 1,
+                    fullName: 1,
+                    avatar: 1,
+                    coverImage: 1,
+                    subscriberCount: 1,
+                    subscribedChannelCount: 1,
+                    isSubscribed: 1
+                }
+            }
+        ]
+    )
+    if(!user || user.length === 0) {
+        throw new ApiError(404, "User not found");
+    }
+    const channelProfile = user[0];
+    res.status(200).json(
+        new ApiResponse(200, "Channel profile fetched successfully", {
+            channelProfile
+        })
+    );
+});
 
-export { userRegisterController, userLoginController, userLogoutController, userLogoutAllSessionsController, refreshAccessTokenController,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController, changeUserPasswordController, getCurrentUserController };
+
+const getWatchHistoryController = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const watchHistory = await User.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(userId) } },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    { $sort: { createdAt: -1 } }, // Sort videos by createdAt in descending order
+                    { $lookup: {
+                        from: "users",
+                        localField: "owner",
+                        foreignField: "_id",
+                        as: "owner",
+                        pipeline: [
+                            { $project: { password: 0, refreshToken: 0, username: 1,
+                                avatar: 1, fullName: 1, coverImage: 1, isVerified: 1 }
+                             } // Exclude password and refreshToken from owner
+                        ]
+                    }},
+                    {
+                        // $unwind: "$owner" // Unwind the owner array to get a single object
+                        $addFields: {
+                            owner: { $first: "$owner" } // Get the first element of the owner array
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $project: {
+                watchHistory: 1
+            }
+        }
+    ]);
+    if(!watchHistory || watchHistory.length === 0) {
+        throw new ApiError(404, "Watch history not found");
+    }
+    res.status(200).json(
+        new ApiResponse(200, "Watch history fetched successfully", {
+            watchHistory: watchHistory[0].watchHistory
+        })
+    );
+});
+
+
+
+
+
+export { userRegisterController, userLoginController, userLogoutController, userLogoutAllSessionsController, 
+    refreshAccessTokenController,updateUserAccountTextFieldsController,updateUserAccountAvatarController, 
+    updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController, 
+    changeUserPasswordController, getCurrentUserController, getChannelProfileController
+    ,getWatchHistoryController };

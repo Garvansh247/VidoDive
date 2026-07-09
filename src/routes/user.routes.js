@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { userRegisterController,userLoginController,userLogoutAllSessionsController,userLogoutController,refreshAccessTokenController
 ,updateUserAccountTextFieldsController,updateUserAccountAvatarController, updateUserAccountCoverImageController, verifyEmailController, resendVerificationEmailController,
- changeUserPasswordController, getCurrentUserController
+ changeUserPasswordController, getCurrentUserController, getChannelProfileController, getWatchHistoryController
  } from "../controllers/user.controller.js";
 import { verifyJWT,checkVerifiedMiddleware,upload } from "../middlewares/index.js";
 
@@ -28,5 +28,10 @@ router.route("/update-account-cover-image").patch(verifyJWT, checkVerifiedMiddle
 
 router.route("/change-password").patch(verifyJWT, checkVerifiedMiddleware, changeUserPasswordController);
 router.route("/current-user").get(verifyJWT, getCurrentUserController);
+
+router.route("/channel/:username").get(getChannelProfileController);
+router.route("/watch-history").get(verifyJWT, getWatchHistoryController);
+
+
 
 export default router;
