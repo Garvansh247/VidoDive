@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import errorMiddleware from "./middlewares/error.middleware.js";
 
+
 const app = express();
 
 app.use(cors({
@@ -24,8 +25,12 @@ app.use(cookieParser());
 
 // Import and use your routes here
 import userRoutes from "./routes/user.routes.js";
-app.use("/api/v1/users", userRoutes);
+import videoRoutes from "./routes/video.routes.js";
+import tweetRoutes from "./routes/tweet.routes.js";
 
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/videos", videoRoutes);
+app.use("/api/v1/tweets", tweetRoutes);
 
 app.use(errorMiddleware); // This middleware should be added after all other middleware and routes to handle errors properly.
 

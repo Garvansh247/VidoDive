@@ -4,7 +4,7 @@ import asyncHandler from "./asyncHandler.js";
 import { uploadToCloudinary,deleteFromCloudinary } from "./cloudinary.js";
 import sendEmail from "./email.js";
 import extractPublicId from "./extractPublicId.js";
-import sendEmailForVerification from "./verificationEmail";
+import sendEmailForVerification from "./verificationEmail.js";
 
 export {
     ApiError,
