@@ -10,7 +10,7 @@ router.route("/:channelId")
     .post(checkVerifiedMiddleware, toggleSubscription)
     .get(getChannelSubscribers);
 
-router.route("/subscriptions")
+router.route("/subscriptions/:userId")
     .get(getChannelSubscriptions);
 
 export default router;

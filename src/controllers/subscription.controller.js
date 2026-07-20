@@ -39,7 +39,7 @@ const getChannelSubscribers = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Channel not found");
     }
     const subscribers= await Subscription.aggregate([
-        { $match: { channel: mongoose.Types.ObjectId(channelId) } },
+        { $match: { channel: new mongoose.Types.ObjectId(channelId) } },
         { $lookup: {
             from: "users",
             localField: "subscriber",
@@ -57,9 +57,9 @@ const getChannelSubscribers = asyncHandler(async (req, res) => {
 });
 
 const getChannelSubscriptions = asyncHandler(async (req, res) => {
-    const {userId} = req.user._id;
+    const {userId} = req.params;
     const subscriptions = await Subscription.aggregate([
-        { $match: { subscriber: mongoose.Types.ObjectId(userId) } },
+        { $match: { subscriber: new mongoose.Types.ObjectId(userId) } },
         { $lookup: {
             from: "users",
             localField: "channel",

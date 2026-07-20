@@ -17,7 +17,7 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
     }
     const existingLike = await Like.findOne({ video: videoId, user: req.user._id });
     if(existingLike){
-        await existingLike.findByIdAndDelete(existingLike._id);
+        await Like.findByIdAndDelete(existingLike._id);
         return res.status(200)
         .json(new ApiResponse(200, "Video unliked successfully",{ isLiked: false }));
     }
@@ -40,7 +40,7 @@ const toggleTweetLike = asyncHandler(async (req, res) => {
     }
     const existingLike = await Like.findOne({ tweet: tweetId, user: req.user._id });
     if(existingLike){
-        await existingLike.findByIdAndDelete(existingLike._id);
+        await Like.findByIdAndDelete(existingLike._id);
         return res.status(200)
         .json(new ApiResponse(200, "Tweet unliked successfully",{ isLiked: false }));
     }
@@ -63,7 +63,7 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
     }
     const existingLike = await Like.findOne({ comment: commentId, user: req.user._id });
     if(existingLike){
-        await existingLike.findByIdAndDelete(existingLike._id);
+        await Like.findByIdAndDelete(existingLike._id);
         return res.status(200)
         .json(new ApiResponse(200, "Comment unliked successfully",{ isLiked: false }));
     }
@@ -78,7 +78,7 @@ const toggleCommentLike = asyncHandler(async (req, res) => {
 const getLikedVideos = asyncHandler(async (req, res) => {
     const LikedVideos = await Like.aggregate([
         {
-            $match: { user: mongoose.Types.ObjectId(req.user._id), video: { $exists: true } }
+            $match: { user: new mongoose.Types.ObjectId(req.user._id), video: { $exists: true } }
         },
         {
             $lookup: {
@@ -144,7 +144,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
 const getLikedTweets = asyncHandler(async (req, res) => {
     const LikedTweets = await Like.aggregate([
         {
-            $match: { user: mongoose.Types.ObjectId(req.user._id), tweet: { $exists: true } }
+            $match: { user: new mongoose.Types.ObjectId(req.user._id), tweet: { $exists: true } }
         },
         {
             $lookup: {
@@ -204,7 +204,7 @@ const getLikedTweets = asyncHandler(async (req, res) => {
 const getLikedComments = asyncHandler(async (req, res) => {
     const LikedComments = await Like.aggregate([
         {
-            $match: { user: mongoose.Types.ObjectId(req.user._id), comment: { $exists: true } }
+            $match: { user: new mongoose.Types.ObjectId(req.user._id), comment: { $exists: true } }
         },
         {
             $lookup: {
