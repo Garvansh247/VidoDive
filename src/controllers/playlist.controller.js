@@ -5,13 +5,14 @@ import { Playlist } from "../models/playlist.model.js";
 import { Video } from "../models/video.model.js";
 
 const createPlaylist = asyncHandler(async (req, res) => {
-    const { title, description } = req.body;
-    if (!title?.trim() || !description?.trim()) {
-        throw new ApiError(400, "Title and description are required");
+    const { title, description, isPrivate } = req.body;
+    if (!title?.trim() || !description?.trim() || !isPrivate) {
+        throw new ApiError(400, "Title, description, and privacy setting are required");
     }
     const newPlaylist = await Playlist.create({
         title: title.trim(),
         description: description.trim(),
+        isPrivate: isPrivate,
         owner: req.user._id,
         videos: []
     });
@@ -77,7 +78,9 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
         }
     }
     const pipeline = [
-        { $match: { owner: new mongoose.Types.ObjectId(userId) } },
+        { $match: { owner: new mongoose.Types.ObjectId(userId),
+            isPrivate: false 
+         } },
         // get the thumbnail of the latest video added in the playlist
         {
             $lookup: {
@@ -189,7 +192,7 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
             }
         }
     )
-    const aggregateQuery = Playlist.aggregate(pipeline);
+    const aggregateQuery = await Playlist.aggregate(pipeline);
     const options = {
         page: parseInt(page, 10),
         limit: parseInt(limit, 10),
@@ -207,9 +210,9 @@ const getPlaylistById = asyncHandler(async (req, res) => {
     if (!isValidObjectId(playlistId)) {
         throw new ApiError(400, "Invalid playlist ID");
     }
-    const playlistExists = await Playlist.exists({ _id: playlistId });
-    if (!playlistExists) {
-        throw new ApiError(404, "Playlist not found");
+    const playlistExists = await Playlist.findById(playlistId);
+    if (!playlistExists || (playlistExists.isPrivate && playlistExists.owner.toString() !== req.user._id.toString())) {
+        throw new ApiError(404, "Playlist not found or is private");
     }
     const validSortFields = ["title", "createdAt", "updatedAt", "views", "likes"];
     const sortField = validSortFields.includes(sortBy) ? sortBy : null;
@@ -375,7 +378,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         }
     )
 
-    const aggregateQuery = Playlist.aggregate(pipeline);
+    const aggregateQuery = await Playlist.aggregate(pipeline);
 
     if(!aggregateQuery || aggregateQuery.length === 0) {
         throw new ApiError(404, "Playlist not found");

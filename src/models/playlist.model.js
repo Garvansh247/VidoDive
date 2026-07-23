@@ -23,6 +23,10 @@ const playlistSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+        isPrivate: {
+            type: Boolean,
+            default: false,
+        }
     },
     {
         timestamps: true, // Automatically adds createdAt and updatedAt fields

@@ -20,7 +20,7 @@ router.route("/:videoId")
             upload.single("thumbnail"),
             updateVideo
         )
-        .delete(deleteVideo);
+        .delete(checkVerifiedMiddleware, deleteVideo);
 
 router.route("/:videoId/toggle-publish")
         .patch(
